@@ -35,12 +35,13 @@ def ping():
 @app.route("/live.m3u8")
 def get_live_m3u8():
     ydl_opts = {
+        'cookiefile': 'cookies.txt',  # এই লাইনটি আপনার আপলোড করা কুকিজ ফাইল ব্যবহার করবে
         'format': 'best[protocol^=m3u8]/best',
         'quiet': True,
         'no_warnings': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android']
+                'player_client': ['web', 'ios']
             }
         }
     }
