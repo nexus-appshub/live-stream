@@ -7,8 +7,8 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# আপনার ইউটিউব লাইভ লিঙ্ক
-YOUTUBE_URL = "https://www.youtube.com/@XUBILASWEBDEVCORP/live"
+# সরাসরি লাইভ ভিডিওর লিঙ্ক (আইডি: zbyQb-sQ9_M)
+YOUTUBE_URL = "https://www.youtube.com/watch?v=zbyQb-sQ9_M"
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
 
 def keep_alive():
@@ -41,32 +41,34 @@ def get_live_m3u8():
         'cookiefile': cookie_file,
         'quiet': True,
         'no_warnings': True,
-        'extract_flat': False,
-        'live_from_start': False,
+        'format': 'best',
+        # অ্যান্ড্রয়েড ও টিভি ক্লায়েন্ট দিলে ডেটাসেন্টার আইপি হলেও ইউটিউব কোনো ফরম্যাট ব্লক করে না
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'tv'],
+                'player_skip': ['webpage', 'configs']
+            }
+        }
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(YOUTUBE_URL, download=False)
             
-            # সরাসরি ম্যানিফেস্ট লিংক চেক করা
-            stream_url = None
-            if 'manifest_url' in info:
-                stream_url = info['manifest_url']
-            elif 'url' in info:
-                stream_url = info['url']
-            else:
-                # ম্যানিফেস্ট ফরম্যাট থেকে m3u8 খুঁজে নেওয়া
-                formats = info.get('formats', [])
-                for f in reversed(formats):
-                    if f.get('protocol') in ['m3u8', 'm3u8_native'] or '.m3u8' in f.get('url', ''):
-                        stream_url = f.get('url')
-                        break
+            # সরাসরি ম্যানিফেস্ট অথবা ফরম্যাট লিস্ট থেকে m3u8 খুঁজে নেওয়া
+            stream_url = info.get('manifest_url') or info.get('url')
             
+            if not stream_url:
+                for f in reversed(info.get('formats', [])):
+                    f_url = f.get('url', '')
+                    if '.m3u8' in f_url or 'manifest' in f_url:
+                        stream_url = f_url
+                        break
+
             if stream_url:
                 return redirect(stream_url, code=302)
             else:
-                return abort(404, "No live HLS stream manifest found. Make sure the channel is actively streaming.")
+                return abort(404, "Stream URL not found in formats")
                 
     except Exception as e:
         return abort(500, f"Error resolving stream: {str(e)}")
